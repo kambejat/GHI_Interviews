@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Malawi District Graph (D3 + Tailwind)</title>
+
+    <!--  Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+      svg {
+        background: white;
+        border: 1px solid #e5e7eb;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-100 min-h-screen flex flex-col items-center justify-start p-6"
+  >
+    <h1 class="text-2xl font-medium text-gray-800 mb-4">
+      Malawi District Graph Visualization
+    </h1>
+
+    <div class="w-full max-w-5xl">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search district..."
+        class="mb-4 w-full p-1 border border-gray-300 rounded w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+
+      <svg id="graph" width="1100" height="480" class="rounded shadow-md"></svg>
+    </div>
+
+    <!-- D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+      const data = {
+        nodes: [
+          { id: "Blantyre" },
+          { id: "Chikwawa" },
+          { id: "Chiradzulu" },
+          { id: "Chitipa" },
+          { id: "Dedza" },
+          { id: "Dowa" },
+          { id: "Karonga" },
+          { id: "Kasungu" },
+          { id: "Lilongwe" },
+          { id: "Machinga" },
+          { id: "Mangochi" },
+          { id: "Mchinji" },
+          { id: "Mulanje" },
+          { id: "Mwanza" },
+          { id: "Mzimba" },
+          { id: "Neno" },
+          { id: "Nkhata Bay" },
+          { id: "Nkhotakota" },
+          { id: "Nsanje" },
+          { id: "Ntcheu" },
+          { id: "Ntchisi" },
+          { id: "Phalombe" },
+          { id: "Rumphi" },
+          { id: "Salima" },
+          { id: "Thyolo" },
+          { id: "Zomba" },
+          { id: "Balaka" },
+          { id: "Likoma" },
+        ],
+        links: [
+          ["Blantyre", "Chikwawa"],
+          ["Blantyre", "Chiradzulu"],
+          ["Blantyre", "Thyolo"],
+          ["Chikwawa", "Nsanje"],
+          ["Chikwawa", "Mwanza"],
+          ["Chiradzulu", "Zomba"],
+          ["Chiradzulu", "Phalombe"],
+          ["Chitipa", "Karonga"],
+          ["Dedza", "Lilongwe"],
+          ["Dedza", "Ntcheu"],
+          ["Dowa", "Lilongwe"],
+          ["Dowa", "Ntchisi"],
+          ["Karonga", "Rumphi"],
+          ["Kasungu", "Lilongwe"],
+          ["Kasungu", "Mzimba"],
+          ["Lilongwe", "Mchinji"],
+          ["Lilongwe", "Salima"],
+          ["Machinga", "Zomba"],
+          ["Machinga", "Balaka"],
+          ["Mangochi", "Balaka"],
+          ["Mangochi", "Salima"],
+          ["Mulanje", "Phalombe"],
+          ["Mulanje", "Thyolo"],
+          ["Mwanza", "Neno"],
+          ["Mzimba", "Nkhata Bay"],
+          ["Mzimba", "Rumphi"],
+          ["Nkhata Bay", "Nkhotakota"],
+          ["Nkhotakota", "Salima"],
+          ["Nsanje", "Chikwawa"],
+          ["Ntcheu", "Balaka"],
+          ["Ntchisi", "Nkhotakota"],
+          ["Phalombe", "Mulanje"],
+          ["Salima", "Nkhotakota"],
+          ["Zomba", "Machinga"],
+        ].map(([source, target]) => ({ source, target })),
+      };
+
+      const svg = d3.select("#graph"),
+        width = +svg.attr("width"),
+        height = +svg.attr("height");
+
+      const simulation = d3
+        .forceSimulation(data.nodes)
+        .force(
+          "link",
+          d3
+            .forceLink(data.links)
+            .id((d) => d.id)
+            .distance(80)
+        )
+        .force("charge", d3.forceManyBody().strength(-150))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collide", d3.forceCollide(30));
+
+      const link = svg
+        .append("g")
+        .attr("stroke", "#ccc")
+        .selectAll("line")
+        .data(data.links)
+        .enter()
+        .append("line");
+
+      const node = svg
+        .append("g")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5)
+        .selectAll("circle")
+        .data(data.nodes)
+        .enter()
+        .append("circle")
+        .attr("r", 10)
+        .attr("fill", "#3b82f6")
+        .on("click", handleNodeClick)
+        .call(drag(simulation));
+
+      const label = svg
+        .append("g")
+        .selectAll("text")
+        .data(data.nodes)
+        .enter()
+        .append("text")
+        .text((d) => d.id)
+        .attr("font-size", "11px")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .attr("fill", "#374151");
+
+      simulation.on("tick", () => {
+        link
+          .attr("x1", (d) => d.source.x)
+          .attr("y1", (d) => d.source.y)
+          .attr("x2", (d) => d.target.x)
+          .attr("y2", (d) => d.target.y);
+
+        node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+
+        label.attr("x", (d) => d.x).attr("y", (d) => d.y);
+      });
+
+      // Node selection color toggle
+      let selectedId = null;
+      function handleNodeClick(event, d) {
+        selectedId = d.id === selectedId ? null : d.id;
+        node.attr("fill", (n) => (n.id === selectedId ? "#10b981" : "#3b82f6"));
+      }
+
+      // Search functionality
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", function () {
+          const query = this.value.toLowerCase();
+          node.attr("fill", (d) => {
+            if (d.id.toLowerCase().includes(query)) {
+              return "#f59e0b";
+            }
+            return d.id === selectedId ? "#10b981" : "#3b82f6";
+          });
+        });
+
+      function drag(simulation) {
+        function dragstarted(event) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          event.subject.fx = event.subject.x;
+          event.subject.fy = event.subject.y;
+        }
+        function dragged(event) {
+          event.subject.fx = event.x;
+          event.subject.fy = event.y;
+        }
+        function dragended(event) {
+          if (!event.active) simulation.alphaTarget(0);
+          event.subject.fx = null;
+          event.subject.fy = null;
+        }
+        return d3
+          .drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended);
+      }
+    </script>
+  </body>
+</html>
